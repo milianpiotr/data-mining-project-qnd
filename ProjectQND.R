@@ -1,5 +1,7 @@
 setwd("~/UCD/DataMining/Project/")
 library(ggplot2)
+library(ggfortify)
+
 library(gridExtra)
 library(randomForest)
 
@@ -7,21 +9,54 @@ library(randomForest)
 # library(nnet)
 library(caret)
 library(rpart)
-library(ggfortify)
 
 df <- read.csv("bank.csv")
 # https://archive.ics.uci.edu/ml/datasets/bank+marketing
-df_small <- read.csv("bank 2.csv", sep = ";")
-df_small <- df_small[names(df)]
-df_big <- read.csv("bank-full.csv", sep = ";")
-df_big <- df_big[names(df)]
+# df_small <- read.csv("bank 2.csv", sep = ";")
+# df_small <- df_small[names(df)]
+# df_big <- read.csv("bank-full.csv", sep = ";")
+# df_big <- df_big[names(df)]
 
-mean(df == df_small)
+df$new_contact <- ifelse(df$previous==0,"new_contact", "existing_contact")
+df$month <- paste(df$new_contact, df$month, sep = "_")
+df$new_contact <- NULL
+
+df$month <- as.factor(df$month)
+
+
 yeses <- ifelse(df$y=="yes",TRUE,FALSE)
 coloring <- ifelse(yeses,"green","red")
 nums <- unlist(lapply(df, is.numeric))  
 
 autoplot(prcomp(df[,nums]), data = df, colour = 'y')
+
+plot(x = df$y, y = df$day)
+
+df$last_contact[df$pdays<0] <- "never"
+df$last_contact[df$pdays>365] <- "old"
+df$last_contact[is.na(df$last_contact)] <- "recent"
+df$last_contact <- as.factor(df$last_contact)
+
+prop.table(table(df$last_contact, df$y),1)
+prop.table(table(df$month, df$y),1)
+
+
+df$campaign
+hist(df$age)
+
+
+pairs(df, col=coloring)
+
+
+
+
+pairs.panels(df)
+
+
+
+df[!complete.cases(df)]
+
+
 
 mean(yeses)
 
@@ -34,10 +69,24 @@ get_tvt_inds <- function(n_examples, train = .6, test = .2) {
   return(list("train" = train_ids, "test" = test_ids, "validate" = validate_ids))
 }
 split <- get_tvt_inds(nrow(df))
+split
+
+fit.rf<-randomForest(y~.,data=df[split$train,], importance=TRUE)
 
 
-fit.rf<-randomForest(y~.,data=df[split$train,])
 pred<-predict(fit.rf,type="class",newdata=df)
+tab_rfrst <- confusionMatrix(data=pred[split$validate], mode="prec_recall",
+                             reference=df$y[split$validate], 
+                             positive = 'yes')
+tab_rfrst
+
+varImpPlot(fit.rf,type=1)
+
+
+df$month <- NULL
+
+
+
 
 
 
